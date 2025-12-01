@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장비 관리 시스템 - 관리자</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logout-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background-color: #c0392b;
+        }
+        .primary-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .primary-btn:hover {
+            background-color: #3e8e41;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>장비 관리 시스템 - 관리자 모드</h1>
+            </div>
+            <button class="logout-btn" id="logoutBtn">로그아웃</button>
+        </div>
+
+        <!-- 장비 목록 표시 -->
+        <div class="section">
+            <h2>장비 목록</h2>
+            <button id="addEquipmentBtn" class="primary-btn">장비 등록</button>
+            <table id="equipmentTable">
+                <thead>
+                    <tr>
+                        <th>장비명</th>
+                        <th>보유 수량</th>
+                        <th>대여 가능 수량</th>
+                        <th>금액</th>
+                        <th>비고</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="equipmentList">
+                    <!-- 장비 목록이 여기에 동적으로 추가됩니다 -->
+                </tbody>
+            </table>
+        </div>
+                <!-- 장비 등록 모달 -->
+        <div id="equipmentModal" class="modal">
+            <div class="modal-content">
+                <span class="close" id="closeEquipmentModal">&times;</span>
+                <h2>장비 등록</h2>
+                <form id="equipmentForm">
+                    <input type="hidden" id="equipmentId">
+                    <div class="form-group">
+                        <label for="equipmentName">장비명:</label>
+                        <input type="text" id="equipmentName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity">수량:</label>
+                        <input type="number" id="quantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="price">금액:</label>
+                        <input type="number" id="price" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="note">비고:</label>
+                        <textarea id="note" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="primary-btn">등록하기</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 대여 현황 -->
+        <div class="section">
+            <h2>대여 현황</h2>
+            <table id="rentalTable">
+                <thead>
+                    <tr>
+                        <th>장비명</th>
+                        <th>신청수량</th>
+                        <th>대여자</th>
+                        <th>소속</th>
+                        <th>직급</th>
+                        <th>대여 기간</th>
+                        <th>상태</th>
+                        <th>비고</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="rentalList">
+                    <!-- 대여 목록이 여기에 동적으로 추가됩니다 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 거절 사유 입력 모달 -->
+    <div id="rejectModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeRejectModal">&times;</span>
+            <h2>대여 거절 사유</h2>
+            <form id="rejectForm">
+                <input type="hidden" id="rejectRentalId">
+                <div class="form-group">
+                    <label for="rejectReason">거절 사유:</label>
+                    <textarea id="rejectReason" rows="4" required></textarea>
+                </div>
+                <button type="submit">거절 처리</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // 관리자 페이지 전용 스크립트
+        document.addEventListener('DOMContentLoaded', () => {
+            // 로그아웃 버튼 이벤트 리스너
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                if (confirm('로그아웃 하시겠습니까?')) {
+                    window.location.href = 'index.html';
+                }
+            });
+            
+            // 관리자 페이지 초기화
+            initAdminPage();
+        });
+        
+        function initAdminPage() {
+            // 장비 목록 렌더링
+            renderEquipmentList();
+            
+            // 대여 현황 렌더링
+            renderRentalList();
+            
+            // 폼 제출 이벤트 리스너
+            document.getElementById('equipmentForm').addEventListener('submit', addEquipment);
+
+            // 장비 수정/삭제 버튼 이벤트 위임 핸들러
+            const equipmentList = document.getElementById('equipmentList');
+            if (equipmentList) {
+                equipmentList.addEventListener('click', handleEquipmentAction);
+            }
+
+            // 거절 모달 폼 이벤트 리스너
+            const rejectForm = document.getElementById('rejectForm');
+            const rejectModal = document.getElementById('rejectModal');
+            const closeRejectModal = document.getElementById('closeRejectModal');
+
+            if (closeRejectModal && rejectModal) {
+                closeRejectModal.addEventListener('click', () => {
+                    rejectModal.style.display = 'none';
+                });
+            }
+
+            if (rejectForm && rejectModal) {
+                rejectForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const rentalId = document.getElementById('rejectRentalId').value;
+                    const rentals = JSON.parse(localStorage.getItem('rentals')) || [];
+                    const rentalIndex = rentals.findIndex(r => r.id === rentalId);
+                    if (rentalIndex === -1) return;
+
+                    const reason = document.getElementById('rejectReason').value.trim();
+                    rentals[rentalIndex].status = 'rejected';
+                    rentals[rentalIndex].rejectReason = reason;
+
+                    localStorage.setItem('rentals', JSON.stringify(rentals));
+
+                    rejectModal.style.display = 'none';
+                    renderRentalList();
+                    location.reload();
+                });
+            }
+        }
+        
+        function renderRentalList() {
+            const rentalList = document.getElementById('rentalList');
+            const rentals = JSON.parse(localStorage.getItem('rentals')) || [];
+            const equipments = JSON.parse(localStorage.getItem('equipments')) || [];
+            
+            rentalList.innerHTML = '';
+            
+            if (rentals.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="9" style="text-align: center;">대여 내역이 없습니다.</td>';
+                rentalList.appendChild(row);
+                return;
+            }
+            
+            rentals.forEach(rental => {
+                const equipment = equipments.find(e => e.id === rental.equipmentId);
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${equipment ? equipment.name : '알 수 없음'}</td>
+                    <td>${rental.quantity}</td>
+                    <td>${rental.userName}</td>
+                    <td>${rental.userDepartment}</td>
+                    <td>${rental.userPosition}</td>
+                    <td>${rental.startDate} ~ ${rental.endDate}</td>
+                    <td>${getRentalStatusText(rental.status)}</td>
+                    <td>${rental.status === 'rejected' && rental.rejectReason ? '거절: ' + rental.rejectReason : (rental.damaged ? '파손: ' + (rental.damageNote || '파손 내용 없음') : '-')}</td>
+                    <td>
+                        ${rental.status === 'pending' ? `
+                            <button class="approve-btn" data-id="${rental.id}">승인</button>
+                            <button class="reject-btn" data-id="${rental.id}">거절</button>
+                        ` : ''}
+                        ${rental.status === 'approved' && !rental.returned ? `
+                            <button class="return-btn" data-id="${rental.id}">반납 처리</button>
+                        ` : ''}
+                        ${rental.status === 'returned' && rental.damaged && !rental.repairRequested ? `
+                            <button class="repair-request-btn" data-id="${rental.id}">수리요청</button>
+                        ` : ''}
+                    </td>
+                `;
+                
+                rentalList.appendChild(row);
+            });
+            
+            // 이벤트 위임을 사용한 버튼 이벤트 처리
+            rentalList.addEventListener('click', handleRentalAction);
+        }
+        
+        function handleRentalAction(e) {
+            const target = e.target;
+            const rentalId = target.getAttribute('data-id');
+            const rentals = JSON.parse(localStorage.getItem('rentals')) || [];
+            const rentalIndex = rentals.findIndex(r => r.id === rentalId);
+            
+            if (rentalIndex === -1) return;
+            
+            if (target.classList.contains('approve-btn')) {
+                if (confirm('대여를 승인하시겠습니까?')) {
+                    rentals[rentalIndex].status = 'approved';
+                    localStorage.setItem('rentals', JSON.stringify(rentals));
+                    renderRentalList();
+                    renderEquipmentList();
+                    location.reload();
+                }
+            } else if (target.classList.contains('reject-btn')) {
+                // 거절 모달을 띄워 거절 사유를 입력받는다.
+                const rejectModal = document.getElementById('rejectModal');
+                if (rejectModal) {
+                    document.getElementById('rejectRentalId').value = rentalId;
+                    document.getElementById('rejectReason').value = '';
+                    rejectModal.style.display = 'block';
+                }
+            } else if (target.classList.contains('return-btn')) {
+                if (confirm('반납 처리를 하시겠습니까?')) {
+                    const rental = rentals[rentalIndex];
+                    const isDamaged = confirm('장비가 파손되었나요?');
+                    
+                    rental.returned = true;
+                    rental.returnedDate = new Date().toISOString().split('T')[0];
+                    rental.status = 'returned';
+                    rental.damaged = isDamaged;
+                    
+                    if (isDamaged) {
+                        const damageNote = prompt('파손 내용을 입력해주세요:');
+                        rental.damageNote = damageNote || '파손 내용 없음';
+                    }
+                    
+                    localStorage.setItem('rentals', JSON.stringify(rentals));
+                    renderRentalList();
+                    renderEquipmentList();
+                    location.reload();
+                }
+            } else if (target.classList.contains('repair-request-btn')) {
+                // 파손 장비 수리 요청
+                const rentals = JSON.parse(localStorage.getItem('rentals')) || [];
+                const index = rentals.findIndex(r => r.id === rentalId);
+                if (index === -1) return;
+
+                rentals[index].repairRequested = true;
+                localStorage.setItem('rentals', JSON.stringify(rentals));
+
+                renderRentalList();
+                renderEquipmentList();
+                alert('수리 요청이 등록되었습니다.');
+                location.reload();
+            }
+        }
+
+        // 장비 수정/삭제 버튼 처리 (관리자용)
+        function handleEquipmentAction(e) {
+            const target = e.target;
+            if (target.classList.contains('delete-btn')) {
+                // app.js 에 정의된 deleteEquipment 사용
+                deleteEquipment(e);
+            } else if (target.classList.contains('edit-btn')) {
+                // app.js 에 정의된 openEditEquipmentModal 사용
+                openEditEquipmentModal(e);
+            }
+        }
+        
+        function getRentalStatusText(status) {
+            const statusMap = {
+                'pending': '대기중',
+                'approved': '승인됨',
+                'rejected': '거절됨',
+                'returned': '반납완료'
+            };
+            return statusMap[status] || status;
+        }
+    </script>
+</body>
+</html>
